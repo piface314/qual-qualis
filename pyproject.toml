@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qual-qualis"
+version = "0.1.0"
+authors = [
+  { name="Henrique Santana", email="henriquessantana314@gmail.com" },
+]
+description = "Busca automatizada de classificação Qualis de conferências e periódicos"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: The Unlicense (Unlicense)",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "google-api-python-client",
+  "levenshtein",
+  "pandas",
+  "pybktree",
+  "requests",
+]
+
+[project.urls]
+Repository = "https://github.com/piface314/qual-qualis"
+Issues = "https://github.com/piface314/qual-qualis/issues"

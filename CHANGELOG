@@ -1,0 +1,14 @@
+# Changelog
+
+Todas as mudanças notáveis desse projeto serão documentadas neste arquivo.
+
+O formato é baseado no [Mantenha um Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
+e este projeto adere ao [Versionamento Semântico](https://semver.org/spec/v2.0.0.html).
+
+## [Não publicado][unreleased]
+
+### Adicionado
+
+- Consulta e cache automáticos das planilhas do Qualis da Ciência da Computação.
+
+[unreleased]: https://github.com/piface314/qual-qualis/compare

@@ -21,6 +21,7 @@ dependencies = [
   "levenshtein",
   "pandas",
   "pybktree",
+  "pydantic",
   "requests",
 ]
 

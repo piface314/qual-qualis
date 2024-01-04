@@ -17,6 +17,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+  "bibtexparser>=2.0.*",
   "google-api-python-client",
   "levenshtein",
   "pandas",
@@ -28,3 +29,10 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/piface314/qual-qualis"
 Issues = "https://github.com/piface314/qual-qualis/issues"
+
+[project.scripts]
+qual-qualis = "qual_qualis.cli:main"
+
+[tool.setuptools.package-data]
+"qual_qualis.data" = ["*.csv"]
+"qual_qualis.index" = ["*.sql"]

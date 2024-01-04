@@ -54,11 +54,11 @@ class Index:
             venues_df: pd.DataFrame = pd.concat(venues_dfs, axis=0)
             tf_df: pd.DataFrame = pd.concat(tf_dfs, axis=0)
             idf_df = self._calculate_idf(len(venues_df), tf_df)
-            self.db.executemany("INSERT INTO venue (type, slug, name, qualis, extra) "
+            self.db.executemany("INSERT INTO venue (type, hash, name, qualis, extra) "
                                 "VALUES (?, ?, ?, ?, ?)", venues_df.itertuples(index=False))
             self.db.executemany("INSERT INTO inv_doc_frequency (token, idf) "
                                 "VALUES (?, ?)", idf_df.itertuples(index=False))
-            self.db.executemany("INSERT INTO term_frequency (token, venue_slug, venue_type, tf) "
+            self.db.executemany("INSERT INTO term_frequency (token, venue_hash, venue_type, tf) "
                                 "VALUES (?, ?, ?, ?)", tf_df.itertuples(index=False))
 
     def _read_data_source(self, src: DataSource) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -83,18 +83,18 @@ class Index:
         tokens_df = (
             df.assign(extra=extra)[["name", "qualis", "extra"]]
             .assign(tokens=lambda _df: _df["name"].apply(self.tokenize))
-            .assign(slug=lambda _df: _df["tokens"].apply("-".join))
+            .assign(hash=lambda _df: _df["tokens"].apply(lambda tk: hash("-".join(tk))))
             .assign(type=venue_type.value)
-            .drop_duplicates(subset=["slug"])
+            .drop_duplicates(subset=["hash"])
         )
         freq_df = (
             tokens_df.explode("tokens")
-            .groupby(["name", "qualis", "extra", "slug", "type"])["tokens"]
+            .groupby(["name", "qualis", "extra", "hash", "type"])["tokens"]
             .value_counts(normalize=True).reset_index()
             .rename({"proportion": "tf", "tokens": "token"}, axis=1)
         )
-        venues_df = tokens_df[["type", "slug", "name", "qualis", "extra"]]
-        termf_df = freq_df[["token", "slug", "type", "tf"]]
+        venues_df = tokens_df[["type", "hash", "name", "qualis", "extra"]]
+        termf_df = freq_df[["token", "hash", "type", "tf"]]
         return venues_df, termf_df
 
     __tokenizer_pattern = re.compile(r"[\w'\u2019]+", re.UNICODE | re.MULTILINE | re.DOTALL)
@@ -135,7 +135,7 @@ class Index:
             DataFrame contendo a IDF.
         """
         return (
-            df[["token", "slug", "type"]]
+            df[["token", "hash", "type"]]
             .groupby("token")["token"]
             .count().rename("count").reset_index()
             .sort_values(by="count")

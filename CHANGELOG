@@ -14,5 +14,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/spec/v2.0.
     - Busca exata por título;
     - Busca aproxiamada por título;
     - Busca por ISSN (apenas para periódicos).
+- Interface de linha de comando com suporte a arquivos .csv e .bib.
 
-[unreleased]: https://github.com/piface314/qual-qualis/compare
+[unreleased]: https://github.com/piface314/qual-qualis/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/piface314/qual-qualis/releases/tag/v0.1.0

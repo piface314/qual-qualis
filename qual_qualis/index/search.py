@@ -30,21 +30,42 @@ class SearchStrategy(ABC):
                 return result
         return None
 
+    @classmethod
+    def create(cls, key: str, index: Index) -> SearchStrategy:
+        """Cria uma instância de estratégia com base em seu nome.
+        
+        Parâmetros
+        ----------
+        key : str
+            Nome da estratégia: "exact", "fuzzy" ou "issn".
+        index : Index
+            Uma instância do índice de busca.
+        """
+        match key:
+            case "exact": return ExactSearch(index)
+            case "fuzzy": return FuzzySearch(index)
+            case "issn": return ISSNSearch(index)
+            case _: raise KeyError(key)
+
 
 class ExactSearch(SearchStrategy):
     """Busca exata pelo nome da via de publicação, usando
     normalização dos termos."""
 
     # pylint: disable=arguments-differ
-    def search(self, name: str, **_) -> Venue | None:
+    def search(self, name: str, venue_type: VenueType | None = None, **_) -> Venue | None:
+        if not name:
+            return None
         tokens = self.index.tokenize(name)
-        slug = "-".join(tokens)
-        fields = ["type", "slug", "name", "qualis", "extra"]
+        name_hash = hash("-".join(tokens))
+        fields = ["type", "hash", "name", "qualis", "extra"]
         query = (f"SELECT {', '.join(fields)}\n"
                   "  FROM venue\n"
-                  "  WHERE slug = ?")
+                  "  WHERE hash = ?")
+        if venue_type:
+            query += f" AND type = {venue_type.value}"
         with self.index.db:
-            cursor = self.index.db.execute(query, (slug,))
+            cursor = self.index.db.execute(query, (name_hash,))
             return next((Venue(**dict(zip(fields, res))) for res in cursor), None)
 
 
@@ -58,18 +79,23 @@ class FuzzySearch(SearchStrategy):
         self.token_index = BKTree(distance, tokens)
 
     # pylint: disable=arguments-differ
-    def search(self, name: str, **_) -> Venue | None:
+    def search(self, name: str, venue_type: VenueType | None = None, **_) -> Venue | None:
+        if not name:
+            return None
         tokens = self.index.tokenize(name)
         matches = ({m for _, m in self.token_index.find(t, 1)} for t in tokens)
         matches = reduce(lambda a, b: a | b, matches, set())
-        fields = ["type", "slug", "name", "qualis", "extra"]
+        fields = ["type", "hash", "name", "qualis", "extra"]
         fields_str = ", ".join(("v." + f for f in fields))
+        conditions = [f"tf.token IN ({', '.join('?' * len(matches))})"]
+        if venue_type:
+            conditions.append(f"v.type = {venue_type.value}")
         query = (f"SELECT {fields_str}, SUM(tf.tf * idf.idf) AS score\n"
                   "  FROM venue AS v JOIN term_frequency AS tf\n"
-                  "       ON v.type = tf.venue_type AND v.slug = tf.venue_slug\n"
+                  "       ON v.type = tf.venue_type AND v.hash = tf.venue_hash\n"
                   "    JOIN inv_doc_frequency AS idf ON tf.token = idf.token\n"
-                  f"  WHERE tf.token IN ({', '.join('?' * len(matches))})\n"
-                  f"  GROUP BY {fields_str}\n"
+                 f"  WHERE {' AND '.join(conditions)}\n"
+                 f"  GROUP BY {fields_str}\n"
                   "  ORDER BY score DESC\n"
                   "  LIMIT 1")
         with self.index.db:
@@ -82,7 +108,9 @@ class ISSNSearch(SearchStrategy):
 
     # pylint: disable=arguments-differ
     def search(self, issn: str, **_) -> Venue | None:
-        fields = ["type", "slug", "name", "qualis", "extra"]
+        if not issn:
+            return None
+        fields = ["type", "hash", "name", "qualis", "extra"]
         query = (f"SELECT {', '.join(fields)}\n"
                   "  FROM venue\n"
                   "  WHERE extra = ? AND type = ?")

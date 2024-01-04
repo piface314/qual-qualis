@@ -3,7 +3,6 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-venue_slug_field = Field(pattern=r"^[a-z0-9][-a-z0-9]+$")
 term_token_field = Field(pattern=r"^[a-z0-9]+$")
 
 
@@ -32,7 +31,7 @@ class Venue(BaseModel):
     """Modelo de via de publicação."""
 
     type: VenueType
-    slug: str = venue_slug_field
+    hash: int
     name: str
     qualis: Qualis
     extra: str
@@ -50,5 +49,5 @@ class TermFrequency(BaseModel):
 
     term_token: str = term_token_field
     venue_type: VenueType
-    venue_slug: str = venue_slug_field
+    venue_hash: int
     tf: float = 0.0

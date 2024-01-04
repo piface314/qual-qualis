@@ -49,20 +49,35 @@ class DataService:
 
     def __init__(
         self,
-        google_credentials: Credentials | None = None,
+        credentials_fp: str | None = None,
         update_period: timedelta = timedelta(days=7),
     ):
         """Inicializa o `DataService`.
 
         Parâmetros
         ----------
-        google_credentials : google.oauth2.service_account.Credentials
+        credentials_fp : str
             Credenciais de conta de serviço do Google Cloud.
         update_period : timedelta
             Período após o qual os dados devem ser atualizados.
         """
-        self.google_credentials = google_credentials
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        credentials_fp = credentials_fp or self.default_credentials_fp()
+        self.credentials = Credentials.from_service_account_file(credentials_fp, scopes=scopes)
         self.update_period = update_period
+
+    @staticmethod
+    def default_credentials_fp() -> str:
+        """Retorna a localização padrão das credenciais Google.
+        
+        Para sistemas Linux e Mac, esse caminho é `$HOME/.config/qual-qualis/google-credentials.json`.
+        Para sistemas Windows, esse caminho é `%LOCALAPPDATA%\\qual-qualis\\google-credentials.json`.
+        """
+        if os.name == "posix":
+            prefix = os.path.join(os.environ.get("HOME"), ".config")
+        else:
+            prefix = os.environ.get("LOCALAPPDATA")
+        return os.path.join(prefix, "qual-qualis", "google-credentials.json")
 
     def _should_update(self, fp: str) -> bool:
         """Retorna se deve atualizar o arquivo apontado por `fp`."""
@@ -78,9 +93,9 @@ class DataService:
         """Atualiza os dados salvos da classificação Qualis com base em
         [planilhas públicas](https://ppgcc.github.io/discentesPPGCC/pt-BR/qualis/).
         """
-        assert self.google_credentials, "Cannot update data without Google Cloud credentials."
+        assert self.credentials, "Cannot update data without Google Cloud credentials."
         google_service = googleapiclient.discovery.build(
-            "sheets", "v4", credentials=self.google_credentials
+            "sheets", "v4", credentials=self.credentials
         )
         # pylint: disable=no-member
         spreadsheets = google_service.spreadsheets()
@@ -105,7 +120,7 @@ class DataService:
             Fonte de dados da qual o caminho é obtido.
         """
         fp = self._cache_path(source)
-        if self.google_credentials and self._should_update(fp):
+        if self.credentials and self._should_update(fp):
             self.update()
         try:
             df = pd.read_csv(fp, header=0).drop_duplicates()

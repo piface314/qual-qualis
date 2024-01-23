@@ -22,14 +22,18 @@ class DefaultCLI:
         parser.add_argument(
             "-i",
             "--input",
-            help=("Arquivo de entrada contendo informações para busca. "
-                  "São aceitos arquivos .csv e .bib.")
+            help=(
+                "Arquivo de entrada contendo informações para busca. "
+                "São aceitos arquivos .csv e .bib."
+            ),
         )
         parser.add_argument(
             "-o",
             "--output",
-            help=("Arquivo de saída para resultado das buscas. "
-                  "Se omitido, o arquivo de entrada é sobrescrito.")
+            help=(
+                "Arquivo de saída para resultado das buscas. "
+                "Se omitido, o arquivo de entrada é sobrescrito."
+            ),
         )
         parser.add_argument("-q", "--query", help="String de busca individual.")
         parser.add_argument(
@@ -59,7 +63,7 @@ class DefaultCLI:
         version: bool = False,
     ):
         """Executa a CLI.
-        
+
         Parâmetros
         ----------
         input : str, opcional
@@ -81,11 +85,13 @@ class DefaultCLI:
         if version:
             print(__version__)
         elif query is not None:
-            self.__process_query_string(query, venue_type, verbose)
+            self.__process_query_string(query, venue_type, verbose, input)
         elif input is not None:
             self.__process_file(input, output, verbose)
         else:
-            sys.stderr.write("Por favor especifique uma entrada de arquivo ou de busca.\n")
+            sys.stderr.write(
+                "Por favor especifique uma entrada de arquivo ou de busca.\n"
+            )
 
     @staticmethod
     def __prepare_strategies() -> list[SearchStrategy]:
@@ -97,18 +103,25 @@ class DefaultCLI:
             SearchStrategy.create("fuzzy", index),
         ]
 
+    # pylint: disable=redefined-builtin
     @classmethod
-    def __process_query_string(cls, query: str, venue_type: str | None, verbose: bool):
+    def __process_query_string(
+        cls, query: str, venue_type: str | None, verbose: bool, input: str | None = None
+    ):
         strategies = cls.__prepare_strategies()
-        venue_type_e = VenueType[venue_type.upper()] if venue_type is not None else None
-        venue = SearchStrategy.apply_many(
-            strategies, issn=query, name=query, venue_type=venue_type_e
-        )
-        if venue is None:
+        if input:
+            file_handler = FileHandler.create(input)
+            venues = file_handler.search_one(strategies, query)
+        else:
+            venue_type_e = VenueType[venue_type.upper()] if venue_type is not None else None
+            venues = SearchStrategy.apply_many(strategies, issn=query, name=query,
+                                               venue_type=venue_type_e)
+        if not venues:
             if verbose:
                 sys.stderr.write("não encontrado.\n")
             sys.exit(1)
-        print(f"{venue.qualis:2s} | {venue.name} | {venue.extra}")
+        for venue in venues:
+            print(f"{venue.qualis:2s} | {venue.name} | {venue.extra}")
 
     # pylint: disable=redefined-builtin
     @classmethod
@@ -116,7 +129,6 @@ class DefaultCLI:
         strategies = cls.__prepare_strategies()
         output = output or input
         file_handler = FileHandler.create(input)
-        file_handler.read(input)
         file_handler.search(strategies, verbose)
         file_handler.write(output)
 

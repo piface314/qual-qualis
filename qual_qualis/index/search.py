@@ -17,18 +17,15 @@ class SearchStrategy(ABC):
         self.index = index
 
     @abstractmethod
-    def search(self, **kwargs) -> Venue | None:
-        """Busca por uma via de publicação que melhor corresponde
+    def search(self, **kwargs) -> list[Venue]:
+        """Busca pelas vias de publicação que melhor correspondem
         aos critérios de busca."""
 
     @classmethod
-    def apply_many(cls, strategies: list[SearchStrategy], **kwargs) -> Venue | None:
-        """Aplica cada uma das estratégias de busca, parando na
-        primeira que encontrar uma correspondência."""
-        for st in strategies:
-            if result := st.search(**kwargs):
-                return result
-        return None
+    def apply_many(cls, strategies: list[SearchStrategy], **kwargs) -> list[Venue]:
+        """Aplica cada uma das estratégias de busca, retornando
+        todos os resultados obtidos na mesma sequência.."""
+        return sum((st.search(**kwargs) for st in strategies), [])
 
     @classmethod
     def create(cls, key: str, index: Index) -> SearchStrategy:
@@ -53,9 +50,9 @@ class ExactSearch(SearchStrategy):
     normalização dos termos."""
 
     # pylint: disable=arguments-differ
-    def search(self, name: str, venue_type: VenueType | None = None, **_) -> Venue | None:
+    def search(self, name: str, venue_type: VenueType | None = None, **_) -> list[Venue]:
         if not name:
-            return None
+            return []
         tokens = self.index.tokenize(name)
         name_hash = hash("-".join(tokens))
         fields = ["type", "hash", "name", "qualis", "extra"]
@@ -66,7 +63,7 @@ class ExactSearch(SearchStrategy):
             query += f" AND type = {venue_type.value}"
         with self.index.db:
             cursor = self.index.db.execute(query, (name_hash,))
-            return next((Venue(**dict(zip(fields, res))) for res in cursor), None)
+            return [Venue(**dict(zip(fields, res))) for res in cursor]
 
 
 class FuzzySearch(SearchStrategy):
@@ -79,16 +76,16 @@ class FuzzySearch(SearchStrategy):
         self.token_index = BKTree(distance, tokens)
 
     # pylint: disable=arguments-differ
-    def search(self, name: str, venue_type: VenueType | None = None, **_) -> Venue | None:
+    def search(self, name: str, venue_type: VenueType | None = None, **_) -> list[Venue]:
         if not name:
-            return None
+            return []
         tokens = self.index.tokenize(name)
-        matches = ({m for _, m in self.token_index.find(t, 1)} for t in tokens)
+        matches = ({m for _, m in self.token_index.find(t, 0)} for t in tokens)
         matches = reduce(lambda a, b: a | b, matches, set())
         fields = ["type", "hash", "name", "qualis", "extra"]
         fields_str = ", ".join(("v." + f for f in fields))
         conditions = [f"tf.token IN ({', '.join('?' * len(matches))})"]
-        if venue_type:
+        if venue_type is not None:
             conditions.append(f"v.type = {venue_type.value}")
         query = (f"SELECT {fields_str}, SUM(tf.tf * idf.idf) AS score\n"
                   "  FROM venue AS v JOIN term_frequency AS tf\n"
@@ -97,23 +94,23 @@ class FuzzySearch(SearchStrategy):
                  f"  WHERE {' AND '.join(conditions)}\n"
                  f"  GROUP BY {fields_str}\n"
                   "  ORDER BY score DESC\n"
-                  "  LIMIT 1")
+                  "  LIMIT 5")
         with self.index.db:
             cursor = self.index.db.execute(query, list(matches))
-            return next((Venue(**dict(zip(fields, res[:-1]))) for res in cursor), None)
+            return [Venue(**dict(zip(fields, res[:-1]))) for res in cursor]
 
 
 class ISSNSearch(SearchStrategy):
     """Busca periódicos pelo ISSN."""
 
     # pylint: disable=arguments-differ
-    def search(self, issn: str, **_) -> Venue | None:
+    def search(self, issn: str, **_) -> list[Venue]:
         if not issn:
-            return None
+            return []
         fields = ["type", "hash", "name", "qualis", "extra"]
         query = (f"SELECT {', '.join(fields)}\n"
                   "  FROM venue\n"
                   "  WHERE extra = ? AND type = ?")
         with self.index.db:
             cursor = self.index.db.execute(query, (issn, VenueType.JOURNALS.value))
-            return next((Venue(**dict(zip(fields, res))) for res in cursor), None)
+            return [Venue(**dict(zip(fields, res))) for res in cursor]

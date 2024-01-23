@@ -81,6 +81,7 @@ class DataService:
 
     def _should_update(self, fp: str) -> bool:
         """Retorna se deve atualizar o arquivo apontado por `fp`."""
+        return False
         return not os.path.exists(fp) or self._file_mod_timedelta(fp) > self.update_period
 
     def last_update(self) -> datetime | None:
@@ -127,3 +128,4 @@ class DataService:
             return df
         except FileNotFoundError as e:
             raise FileNotFoundError("Missing Google Cloud credentials?") from e
+

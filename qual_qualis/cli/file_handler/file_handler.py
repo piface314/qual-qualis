@@ -5,6 +5,7 @@ import re
 import os
 
 from qual_qualis.index.search import SearchStrategy
+from qual_qualis.index.model import Venue
 
 
 class FileHandler(ABC):
@@ -44,7 +45,10 @@ class FileHandler(ABC):
         name = os.path.basename(fp)
         m = re.search(r"\.(.+)$", name)
         ext = m.group(1) if m is not None else None
-        return cls.__supported_extensions[ext]()
+        return cls.__supported_extensions[ext](fp)
+
+    def __init__(self, fp: str):
+        self.read(fp)
 
     @classmethod
     @abstractmethod
@@ -82,4 +86,21 @@ class FileHandler(ABC):
         ----------
         fp : str
             Caminho de arquivo a ser escrito.
+        """
+
+    @abstractmethod
+    def search_one(self, strategies: list[SearchStrategy], key: str) -> list[Venue]:
+        """Realiza a busca para uma entrada específica no arquivo lido.
+
+        Parâmetros
+        ----------
+        strategies : list[SearchStrategy]
+            Lista de estratégias de busca a ser usadas.
+        key : str
+            Chave identificadora da entrada a ser pesquisada.
+
+        Retorna
+        -------
+        list[Venue]
+            Resultados da busca.
         """

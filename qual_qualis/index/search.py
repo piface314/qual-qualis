@@ -54,7 +54,7 @@ class ExactSearch(SearchStrategy):
         if not name:
             return []
         tokens = self.index.tokenize(name)
-        name_hash = hash("-".join(tokens))
+        name_hash = self.index.hash("-".join(tokens))
         fields = ["type", "hash", "name", "qualis", "extra"]
         query = (f"SELECT {', '.join(fields)}\n"
                   "  FROM venue\n"

@@ -31,7 +31,7 @@ class Venue(BaseModel):
     """Modelo de via de publicação."""
 
     type: VenueType
-    hash: int
+    hash: bytes
     name: str
     qualis: Qualis
     extra: str

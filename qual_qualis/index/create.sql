@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS venue;
 
 CREATE TABLE venue (
     `type` INT NOT NULL,
-    `hash` INT NOT NULL,
+    `hash` BLOB NOT NULL,
     `name` TEXT NOT NULL,
     `qualis` TEXT NOT NULL,
     `extra` TEXT,

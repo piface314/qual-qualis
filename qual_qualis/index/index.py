@@ -1,6 +1,7 @@
 """Índice que provê buscas por periódicos e conferências."""
 from datetime import datetime
 from functools import reduce
+import hashlib
 import os
 import re
 import sqlite3
@@ -83,7 +84,7 @@ class Index:
         tokens_df = (
             df.assign(extra=extra)[["name", "qualis", "extra"]]
             .assign(tokens=lambda _df: _df["name"].apply(self.tokenize))
-            .assign(hash=lambda _df: _df["tokens"].apply(lambda tk: hash("-".join(tk))))
+            .assign(hash=lambda _df: _df["tokens"].apply(lambda tk: self.hash("-".join(tk))))
             .assign(type=venue_type.value)
             .drop_duplicates(subset=["hash"])
         )
@@ -117,6 +118,10 @@ class Index:
         tokens = (unicodedata.normalize("NFKD", token.lower()) for token in tokens)
         tokens = (re.sub(r"[^a-z0-9]", "", token) for token in tokens)
         return list(tokens)
+    
+    def hash(self, text: str) -> bytes:
+        """Atalho para criar o hash MD5 de uma string."""
+        return hashlib.md5(text.encode()).digest()
 
     def _calculate_idf(self, n: int, df: pd.DataFrame) -> pd.DataFrame:
         """Calcula a IDF (inverse document frequency) de cada termo

@@ -1,4 +1,5 @@
 """Gerencia acesso e atualização aos dados brutos do Qualis."""
+
 from datetime import datetime, timedelta
 import os
 
@@ -16,13 +17,13 @@ class DataService:
         DataSource.CONFERENCES: SpreadsheetParam(
             id="1yvuCa__L7r0EJy6v6Jb17fvu-VdV80PbfAReR9Gy52I",
             range="A2:C",
-            columns=["acronym", "name", "qualis"]
+            columns=["acronym", "name", "qualis"],
         ),
         DataSource.JOURNALS: SpreadsheetParam(
             id="10sObNyyL7veHGFbOyizxM8oVsppQoWV-0ALrDr8FxQ0",
             range="A2:F",
-            columns=["issn", "name", "", "", "", "qualis"]
-        )
+            columns=["issn", "name", "", "", "", "qualis"],
+        ),
     }
 
     @staticmethod
@@ -63,13 +64,17 @@ class DataService:
         """
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
         credentials_fp = credentials_fp or self.default_credentials_fp()
-        self.credentials = Credentials.from_service_account_file(credentials_fp, scopes=scopes)
+        self.credentials = (
+            Credentials.from_service_account_file(credentials_fp, scopes=scopes)
+            if os.path.exists(credentials_fp)
+            else None
+        )
         self.update_period = update_period
 
     @staticmethod
     def default_credentials_fp() -> str:
         """Retorna a localização padrão das credenciais Google.
-        
+
         Para sistemas Linux e Mac, esse caminho é `$HOME/.config/qual-qualis/google-credentials.json`.
         Para sistemas Windows, esse caminho é `%LOCALAPPDATA%\\qual-qualis\\google-credentials.json`.
         """
@@ -81,20 +86,26 @@ class DataService:
 
     def _should_update(self, fp: str) -> bool:
         """Retorna se deve atualizar o arquivo apontado por `fp`."""
-        return False
-        return not os.path.exists(fp) or self._file_mod_timedelta(fp) > self.update_period
+        return (
+            not os.path.exists(fp) or self._file_mod_timedelta(fp) > self.update_period
+        )
 
     def last_update(self) -> datetime | None:
         """Retorna a última data de atualização dos dados."""
         fps = (self._cache_path(src) for src in self.spreadsheet_params)
-        dts = (datetime.fromtimestamp(os.path.getmtime(fp)) for fp in fps if os.path.exists(fp))
+        dts = (
+            datetime.fromtimestamp(os.path.getmtime(fp))
+            for fp in fps
+            if os.path.exists(fp)
+        )
         return max(dts, default=None)
 
     def update(self):
         """Atualiza os dados salvos da classificação Qualis com base em
         [planilhas públicas](https://ppgcc.github.io/discentesPPGCC/pt-BR/qualis/).
         """
-        assert self.credentials, "Cannot update data without Google Cloud credentials."
+        if not self.credentials:
+            return
         google_service = googleapiclient.discovery.build(
             "sheets", "v4", credentials=self.credentials
         )
@@ -114,7 +125,7 @@ class DataService:
     def get(self, source: DataSource) -> pd.DataFrame:
         """Obtém os dados brutos da classificação Qualis referentes
         a uma fonte de dados específica.
-        
+
         Parâmetros
         ----------
         source : DataSource
@@ -128,4 +139,3 @@ class DataService:
             return df
         except FileNotFoundError as e:
             raise FileNotFoundError("Missing Google Cloud credentials?") from e
-

@@ -121,7 +121,7 @@ class DefaultCLI:
                 sys.stderr.write("não encontrado.\n")
             sys.exit(1)
         for venue in venues:
-            print(f"{venue.qualis:2s} | {venue.name} | {venue.extra}")
+            print(f"{venue.qualis.name:2s} | {venue.name} | {venue.extra}")
 
     # pylint: disable=redefined-builtin
     @classmethod

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qual-qualis"
-version = "0.2.3"
+version = "1.0.0"
 authors = [
   { name="Henrique Santana", email="henriquessantana314@gmail.com" },
 ]
@@ -18,12 +18,11 @@ classifiers = [
 ]
 dependencies = [
   "bibtexparser ~= 2.0.0b",
-  "google-api-python-client",
   "levenshtein",
   "pandas",
   "pybktree",
   "pydantic",
-  "requests",
+  "typer",
 ]
 
 [project.urls]

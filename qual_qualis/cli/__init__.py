@@ -1,143 +1,146 @@
 """Interface de linha de comando (CLI) para usar a ferramenta."""
-from typing import Any
-import argparse
+
+from pathlib import Path
+from typing import Annotated, Optional
+from typer import Argument, Exit, Option, Typer
 import sys
 
 from qual_qualis import __version__
 from qual_qualis.cli.file_handler import FileHandler
-from qual_qualis.data.service import DataService
+from qual_qualis.data.service import DataService, DataSource
 from qual_qualis.index.index import Index
-from qual_qualis.index.model import VenueType
-from qual_qualis.index.search import SearchStrategy
+from qual_qualis.index.model import Venue, VenueType
+from qual_qualis.index.search import SearchStrategy, SearchStrategyKey
 
 
-class DefaultCLI:
+cli = Typer(name="qual-qualis")
 
-    """Interface de linha de comando (CLI) padrão para usar a ferramenta."""
 
-    def __init__(self):
-        parser = argparse.ArgumentParser(
-            prog="qual-qualis", description="Busca de classificação Qualis."
-        )
-        parser.add_argument(
-            "-i",
+@cli.command()
+def search(
+    query: Annotated[
+        Optional[str], Argument(help="String de busca individual.")
+    ] = None,
+    input_file: Annotated[
+        Optional[Path],
+        Option(
             "--input",
+            "-i",
             help=(
                 "Arquivo de entrada contendo informações para busca. "
                 "São aceitos arquivos .csv e .bib."
             ),
-        )
-        parser.add_argument(
-            "-o",
+        ),
+    ] = None,
+    output_file: Annotated[
+        Optional[Path],
+        Option(
             "--output",
+            "-o",
             help=(
                 "Arquivo de saída para resultado das buscas. "
-                "Se omitido, o arquivo de entrada é sobrescrito."
+                "Se omitido, os resultados são apresentados na tela."
             ),
-        )
-        parser.add_argument("-q", "--query", help="String de busca individual.")
-        parser.add_argument(
-            "--venue-type",
-            help="Especifica o tipo da via de publicação. Válido apenas para busca individual.",
-            choices=["conferences", "journals"],
-        )
-        parser.add_argument(
-            "--verbose", action="store_true", help="Detalha a execução da ferramenta."
-        )
-        parser.add_argument(
-            "--version", action="store_true", help="Mostra a versão da ferramenta."
-        )
-        self.parser = parser
+        ),
+    ] = None,
+    venue: Annotated[
+        Optional[DataSource],
+        Option(
+            help=(
+                "Especifica o tipo da via de publicação. "
+                "Válido apenas para busca individual."
+            ),
+        ),
+    ] = None,
+    strategies: Annotated[
+        list[SearchStrategyKey],
+        Option("-s", "--strategy", help="Estratégias de busca a ser usadas."),
+    ] = [],
+    n_results: Annotated[
+        int, Option("-n", help="Quantidade de resultados a ser exibidos.")
+    ] = 5,
+    version: Annotated[
+        bool, Option("-v", "--version", help="Mostra a versão da ferramenta.")
+    ] = False,
+):
+    """Busca de classificação Qualis."""
+    if version:
+        return print(__version__)
 
-    def parse_args(self, args: list[str] | None = None) -> dict[str, Any]:
-        """Atalho para self.parser.parse_args()."""
-        return vars(self.parser.parse_args(args))
+    venue_type = VenueType[venue.name] if venue is not None else None
+    strategies = strategies if strategies else list(SearchStrategyKey)
 
-    def run(
-        self,
-        input: str | None = None,  # pylint: disable=redefined-builtin
-        output: str | None = None,
-        query: str | None = None,
-        venue_type: str | None = None,
-        verbose: bool = False,
-        version: bool = False,
-    ):
-        """Executa a CLI.
-
-        Parâmetros
-        ----------
-        input : str, opcional
-            Arquivo de entrada contendo informações para busca.
-            São aceitos arquivos .csv e .bib.
-        output : str, opcional
-            Arquivo de saída para resultado das buscas.
-            Se omitido, o arquivo de entrada é sobrescrito.
-        query : str, opcional
-            String de busca individual.
-        venue_type : str, opcional
-            Especifica o tipo da via de publicação.
-            Válido apenas para busca individual.
-        verbose : bool
-            Detalha a execução da ferramenta.
-        version : bool
-            Mostra a versão da ferramenta.
-        """
-        if version:
-            print(__version__)
-        elif query is not None:
-            self.__process_query_string(query, venue_type, verbose, input)
-        elif input is not None:
-            self.__process_file(input, output, verbose)
-        else:
+    match (query, input_file):
+        case (None, None):
             sys.stderr.write(
-                "Por favor especifique uma entrada de arquivo ou de busca.\n"
+                "Por favor especifique uma string de busca ou arquivo de entrada.\n"
             )
-
-    @staticmethod
-    def __prepare_strategies() -> list[SearchStrategy]:
-        data_service = DataService()
-        index = Index(data_service)
-        return [
-            SearchStrategy.create("issn", index),
-            SearchStrategy.create("exact", index),
-            SearchStrategy.create("fuzzy", index),
-        ]
-
-    # pylint: disable=redefined-builtin
-    @classmethod
-    def __process_query_string(
-        cls, query: str, venue_type: str | None, verbose: bool, input: str | None = None
-    ):
-        strategies = cls.__prepare_strategies()
-        if input:
-            file_handler = FileHandler.create(input)
-            venues = file_handler.search_one(strategies, query)
-        else:
-            venue_type_e = VenueType[venue_type.upper()] if venue_type is not None else None
-            venues = SearchStrategy.apply_many(strategies, issn=query, name=query,
-                                               venue_type=venue_type_e)
-        if not venues:
-            if verbose:
-                sys.stderr.write("não encontrado.\n")
-            sys.exit(1)
-        for venue in venues:
-            print(f"{venue.qualis.name:2s} | {venue.name} | {venue.extra}")
-
-    # pylint: disable=redefined-builtin
-    @classmethod
-    def __process_file(cls, input: str, output: str | None, verbose: bool):
-        strategies = cls.__prepare_strategies()
-        output = output or input
-        file_handler = FileHandler.create(input)
-        file_handler.search(strategies, verbose)
-        file_handler.write(output)
+            raise Exit(code=1)
+        case (query, None):
+            simple_search(strategies, query, venue_type, n_results)
+        case (None, input_file):
+            file_search(strategies, input_file, output_file, n_results)
+        case (query, input_file):
+            file_single_search(strategies, input_file, query, n_results)
 
 
-def main():
-    """Função a ser executada quando o módulo for chamado diretamente."""
-    cli = DefaultCLI()
-    cli.run(**cli.parse_args())
+def prepare_strategies(keys: list[SearchStrategyKey]) -> list[SearchStrategy]:
+    """Inicializa e retorna as estratégias de busca."""
+    data_service = DataService()
+    index = Index(data_service)
+    return [SearchStrategy.create(key, index) for key in keys]
+
+
+def show_results(venues: list[Venue], indent_level: int = 0):
+    """Exibe resultados de busca."""
+    indent = " " * indent_level
+    for venue in venues:
+        print(f"{indent}- {venue.qualis.name:2s} | {venue.name} | {venue.extra}")
+
+
+def simple_search(
+    strategies: list[SearchStrategyKey],
+    query: str,
+    venue_type: VenueType | None,
+    n_results: int,
+):
+    """Realiza busca individual."""
+    strategies = prepare_strategies(strategies)
+    venues = SearchStrategy.apply_many(
+        strategies, issn=query, name=query, venue_type=venue_type, n_results=n_results
+    )
+    if not venues:
+        Exit(code=1)
+    show_results(venues)
+
+
+def file_search(
+    strategies: list[SearchStrategyKey],
+    input_file: Path,
+    output_file: Path | None,
+    n_results: int,
+):
+    strategies = prepare_strategies(strategies)
+    file_handler = FileHandler.create(input_file)
+    results = file_handler.search(strategies, n_results=n_results)
+    if output_file:
+        file_handler.write(output_file)
+    else:
+        for key, venues in results.items():
+            print(f"{key}:")
+            show_results(venues, indent_level=2)
+
+
+def file_single_search(
+    strategies: list[SearchStrategyKey], input_file: Path, key: str, n_results: int
+):
+    strategies = prepare_strategies(strategies)
+    file_handler = FileHandler.create(input_file)
+    venues = file_handler.search_one(strategies, key, n_results=n_results)
+    if not venues:
+        Exit(code=1)
+    show_results(venues)
 
 
 if __name__ == "__main__":
-    main()
+    cli()

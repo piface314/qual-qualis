@@ -7,14 +7,15 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/spec/v2.0.
 
 ## [Não publicado][unreleased]
 
+## [1.0.0] - 2022-07-24
+
 ### Adicionado
 
-- Consulta e cache automáticos das planilhas do Qualis da Ciência da Computação.
 - Índice com suporte a diferentes estratégias de busca:
     - Busca exata por título;
     - Busca aproxiamada por título;
     - Busca por ISSN (apenas para periódicos).
 - Interface de linha de comando com suporte a arquivos .csv e .bib.
 
-[unreleased]: https://github.com/piface314/qual-qualis/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/piface314/qual-qualis/releases/tag/v0.1.0
+[unreleased]: https://github.com/piface314/qual-qualis/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/piface314/qual-qualis/releases/tag/v1.0.0

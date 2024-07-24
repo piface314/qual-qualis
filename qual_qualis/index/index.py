@@ -50,8 +50,7 @@ class Index:
             sql = f.read()
         with self.db:
             self.db.executescript(sql)
-            sources = [DataSource.CONFERENCES, DataSource.JOURNALS]
-            venues_dfs, tf_dfs = zip(*(self._read_data_source(src) for src in sources))
+            venues_dfs, tf_dfs = zip(*(self._read_data_source(src) for src in DataSource))
             venues_df: pd.DataFrame = pd.concat(venues_dfs, axis=0)
             tf_df: pd.DataFrame = pd.concat(tf_dfs, axis=0)
             idf_df = self._calculate_idf(len(venues_df), tf_df)

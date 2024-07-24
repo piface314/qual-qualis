@@ -1,6 +1,7 @@
 """Classe abstrata para lidar com diferentes tipos de arquivo de entrada."""
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from pathlib import Path
 import re
 import os
 
@@ -27,7 +28,7 @@ class FileHandler(ABC):
             cls.__supported_extensions[ext] = handler
 
     @classmethod
-    def create(cls, fp: str) -> FileHandler:
+    def create(cls, fp: Path) -> FileHandler:
         """Cria uma instância de FileHandler de acordo com
         um caminho de arquivo que termina em alguma extensão
         compreendida.
@@ -56,17 +57,17 @@ class FileHandler(ABC):
         """Retorna as extensões de arquivo compreendidas pela classe."""
 
     @abstractmethod
-    def read(self, fp: str):
+    def read(self, fp: Path):
         """Lê um arquivo e salva suas informações para consulta posterior.
         
         Parâmetros
         ----------
-        fp : str
+        fp : Path
             Caminho de arquivo a ser lido.
         """
 
     @abstractmethod
-    def search(self, strategies: list[SearchStrategy], verbose: bool = False):
+    def search(self, strategies: list[SearchStrategy], n_results: int = 5) -> dict[str, list[Venue]]:
         """Realiza buscas para cada entrada contida no arquivo lido,
         atualizando os dados salvos com o resultado da busca.
         
@@ -74,22 +75,22 @@ class FileHandler(ABC):
         ----------
         strategies : list[SearchStrategy]
             Lista de estratégias de busca a ser usadas.
-        verbose : bool
-            Habilita saída detalhada da execução.
+        n_results: int, opcional
+            Quantidade de resultados.
         """
 
     @abstractmethod
-    def write(self, fp: str):
+    def write(self, fp: Path):
         """Escreve em arquivo os resultados da busca.
         
         Parâmetros
         ----------
-        fp : str
+        fp : Path
             Caminho de arquivo a ser escrito.
         """
 
     @abstractmethod
-    def search_one(self, strategies: list[SearchStrategy], key: str) -> list[Venue]:
+    def search_one(self, strategies: list[SearchStrategy], key: str, n_results: int = 5) -> list[Venue]:
         """Realiza a busca para uma entrada específica no arquivo lido.
 
         Parâmetros
@@ -98,6 +99,8 @@ class FileHandler(ABC):
             Lista de estratégias de busca a ser usadas.
         key : str
             Chave identificadora da entrada a ser pesquisada.
+        n_results: int, opcional
+            Quantidade de resultados.
 
         Retorna
         -------

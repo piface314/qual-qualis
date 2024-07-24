@@ -1,6 +1,7 @@
 """Estratégias de busca no índice."""
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from enum import Enum
 from functools import reduce
 
 from Levenshtein import distance
@@ -8,6 +9,12 @@ from pybktree import BKTree
 
 from qual_qualis.index.index import Index
 from qual_qualis.index.model import Venue, VenueType
+
+
+class SearchStrategyKey(str, Enum):
+    ISSN = "issn"
+    EXACT = "exact"
+    FUZZY = "fuzzy"
 
 
 class SearchStrategy(ABC):
@@ -24,11 +31,11 @@ class SearchStrategy(ABC):
     @classmethod
     def apply_many(cls, strategies: list[SearchStrategy], **kwargs) -> list[Venue]:
         """Aplica cada uma das estratégias de busca, retornando
-        todos os resultados obtidos na mesma sequência.."""
+        todos os resultados obtidos na mesma sequência."""
         return sum((st.search(**kwargs) for st in strategies), [])
 
     @classmethod
-    def create(cls, key: str, index: Index) -> SearchStrategy:
+    def create(cls, key: SearchStrategyKey, index: Index) -> SearchStrategy:
         """Cria uma instância de estratégia com base em seu nome.
         
         Parâmetros
@@ -39,10 +46,12 @@ class SearchStrategy(ABC):
             Uma instância do índice de busca.
         """
         match key:
-            case "exact": return ExactSearch(index)
-            case "fuzzy": return FuzzySearch(index)
-            case "issn": return ISSNSearch(index)
-            case _: raise KeyError(key)
+            case SearchStrategyKey.EXACT:
+                return ExactSearch(index)
+            case SearchStrategyKey.FUZZY:
+                return FuzzySearch(index)
+            case SearchStrategyKey.ISSN:
+                return ISSNSearch(index)
 
 
 class ExactSearch(SearchStrategy):
@@ -76,7 +85,7 @@ class FuzzySearch(SearchStrategy):
         self.token_index = BKTree(distance, tokens)
 
     # pylint: disable=arguments-differ
-    def search(self, name: str, venue_type: VenueType | None = None, **_) -> list[Venue]:
+    def search(self, name: str, venue_type: VenueType | None = None, n_results: int = 5, **_) -> list[Venue]:
         if not name:
             return []
         tokens = self.index.tokenize(name)
@@ -94,7 +103,7 @@ class FuzzySearch(SearchStrategy):
                  f"  WHERE {' AND '.join(conditions)}\n"
                  f"  GROUP BY {fields_str}\n"
                   "  ORDER BY score DESC\n"
-                  "  LIMIT 5")
+                 f"  LIMIT {n_results}")
         with self.index.db:
             cursor = self.index.db.execute(query, list(matches))
             return [Venue(**dict(zip(fields, res[:-1]))) for res in cursor]
@@ -104,7 +113,7 @@ class ISSNSearch(SearchStrategy):
     """Busca periódicos pelo ISSN."""
 
     # pylint: disable=arguments-differ
-    def search(self, issn: str, **_) -> list[Venue]:
+    def search(self, issn: str | None = None, **_) -> list[Venue]:
         if not issn:
             return []
         fields = ["type", "hash", "name", "qualis", "extra"]

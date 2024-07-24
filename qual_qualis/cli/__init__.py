@@ -142,5 +142,9 @@ def file_single_search(
     show_results(venues)
 
 
-if __name__ == "__main__":
+def main():
     cli()
+
+
+if __name__ == "__main__":
+    main()

@@ -71,9 +71,7 @@ class BibHandler(FileHandler):
             t[0]: t[1] for t in map(process_block, self.library.blocks) if t is not None
         }
         self.library = bib.Library(
-            process_result(
-                block, results[block.key] if isinstance(block, bibm.Entry) else None
-            )
+            process_result(block, results[block.key]) if isinstance(block, bibm.Entry) else block
             for block in self.library.blocks
         )
         return results

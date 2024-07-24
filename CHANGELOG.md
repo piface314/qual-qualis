@@ -7,7 +7,13 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/spec/v2.0.
 
 ## [Não publicado][unreleased]
 
-## [1.0.0] - 2022-07-24
+## [1.0.1] - 2024-07-24
+
+### Corrigido
+
+- Bug quando havia blocos adicionais em arquivos .bib
+
+## [1.0.0] - 2024-07-24
 
 ### Adicionado
 
@@ -17,5 +23,6 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/spec/v2.0.
     - Busca por ISSN (apenas para periódicos).
 - Interface de linha de comando com suporte a arquivos .csv e .bib.
 
-[unreleased]: https://github.com/piface314/qual-qualis/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/piface314/qual-qualis/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/piface314/qual-qualis/releases/tag/v1.0.1
 [1.0.0]: https://github.com/piface314/qual-qualis/releases/tag/v1.0.0
